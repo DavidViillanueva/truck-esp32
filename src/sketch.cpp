@@ -32,6 +32,10 @@ int pos = 0;
 int throttlePin = 21;
 int brakePin = 22;
 
+int forwardPin = 1;
+int backwardPin = 1;
+int speedPin = 0;
+
 // This callback gets called any time a new gamepad is connected.
 // Up to 4 gamepads can be connected at the same time.
 void onConnectedController(ControllerPtr ctl)
@@ -108,14 +112,33 @@ int rangeConvert(int number)
     return 180 - (45 * (number + 511) / 256);
 }
 
+void forwardRun(int speed)
+{
+    digitalWrite(forwardPin, HIGH);
+    digitalWrite(backwardPin, LOW);
+    analogWrite(speedPin, speed);
+    delay(100);
+}
+
+void backwardRun(int speed)
+{
+    digitalWrite(backwardPin, HIGH);
+    digitalWrite(forwardPin, LOW);
+    analogWrite(speedPin, speed);
+    delay(100);
+}
 void processGamepad(ControllerPtr ctl)
 {
     // There are different ways to query whether a button is pressed.
     // By query each button individually:
     //  a(), b(), x(), y(), l1(), etc...
     digitalWrite(throttlePin, LOW);
-    digitalWrite(22, LOW);
+    digitalWrite(brakePin, LOW);
+    digitalWrite(backwardPin, LOW);
+    digitalWrite(forwardPin, LOW);
+    analogWrite(speedPin, LOW);
     myServo.write(90);
+
     if (ctl->a())
     {
         Console.println("A");
@@ -146,25 +169,31 @@ void processGamepad(ControllerPtr ctl)
     if (ctl->throttle() > 100)
     {
         Console.printf("Throttle %5d \n", ctl->throttle());
-        analogWrite(throttlePin, ctl->throttle() / 4);
+        forwardRun(ctl->throttle() / 4);
     }
 
     if (ctl->brake() > 100)
     {
         Console.printf("Brake %5d \n", ctl->brake());
-        analogWrite(brakePin, ctl->brake() / 4);
+        backwardRun(ctl->brake() / 4);
     }
 
     if (ctl->axisX() > 50)
     {
         Console.printf("Rigth %5d \n", ctl->axisX());
-        myServo.write(rangeConvert(ctl->axisX()));
+        if (ctl->axisX() < 170)
+        {
+            myServo.write(rangeConvert(ctl->axisX()));
+        }
     }
 
     if (ctl->axisX() < -50)
     {
         Console.printf("Left %5d \n", ctl->axisX());
-        myServo.write(rangeConvert(ctl->axisX()));
+        if (ctl->axisX() > -170)
+        {
+            myServo.write(rangeConvert(ctl->axisX()));
+        }
     }
 
     // Another way to query controller data is by getting the buttons() function.
@@ -226,7 +255,6 @@ void setup()
     pinMode(brakePin, OUTPUT);
 
     myServo.attach(GPIO_NUM_13);
-    myServo.write(0);
 
     digitalWrite(throttlePin, HIGH);
     digitalWrite(brakePin, HIGH);
@@ -235,18 +263,6 @@ void setup()
 
     digitalWrite(throttlePin, LOW);
     digitalWrite(brakePin, LOW);
-
-    for (pos = 0; pos <= 180; pos += 1)
-    {                       // goes from 0 degrees to 180 degrees
-                            // in steps of 1 degree
-        myServo.write(pos); // tell servo to go to position in variable 'pos'
-        delay(15);          // waits 15ms for the servo to reach the position
-    }
-    for (pos = 180; pos >= 0; pos -= 1)
-    {                       // goes from 180 degrees to 0 degrees
-        myServo.write(pos); // tell servo to go to position in variable 'pos'
-        delay(15);          // waits 15ms for the servo to reach the position
-    }
 
     myServo.write(90);
 }
